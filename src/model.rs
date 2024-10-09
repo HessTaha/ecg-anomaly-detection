@@ -1,12 +1,14 @@
 use burn::{
-    nn::{Linear, LinearConfig, Relu, Sigmoid},
+    nn::{LayerNorm, LayerNormConfig, Linear, LinearConfig, Relu, Sigmoid},
     prelude::*,
 };
 
 #[derive(Module, Debug)]
 pub struct Encoder<B: Backend> {
     linear1: Linear<B>,
+    layer_norm1: LayerNorm<B>,
     linear2: Linear<B>,
+    layer_norm2: LayerNorm<B>,
     linear3: Linear<B>,
 }
 
@@ -21,7 +23,9 @@ pub struct EncoderConfig {
 #[derive(Module, Debug)]
 pub struct Decoder<B: Backend> {
     linear1: Linear<B>,
+    layer_norm1: LayerNorm<B>,
     linear2: Linear<B>,
+    layer_norm2: LayerNorm<B>,
     linear3: Linear<B>,
 }
 
@@ -55,11 +59,13 @@ impl AutoEncoderConfig {
                 self.encoder_config.linear1_output_dim,
             )
             .init(device),
+            layer_norm1: LayerNormConfig::new(self.encoder_config.linear1_output_dim).init(device),
             linear2: LinearConfig::new(
                 self.encoder_config.linear1_output_dim,
                 self.encoder_config.linear2_output_dim,
             )
             .init(device),
+            layer_norm2: LayerNormConfig::new(self.encoder_config.linear2_output_dim).init(device),
             linear3: LinearConfig::new(
                 self.encoder_config.linear2_output_dim,
                 self.encoder_config.linear3_output_dim,
@@ -72,11 +78,13 @@ impl AutoEncoderConfig {
                 self.decoder_config.linear1_output_dim,
             )
             .init(device),
+            layer_norm1: LayerNormConfig::new(self.decoder_config.linear1_output_dim).init(device),
             linear2: LinearConfig::new(
                 self.decoder_config.linear1_output_dim,
                 self.decoder_config.linear2_output_dim,
             )
             .init(device),
+            layer_norm2: LayerNormConfig::new(self.decoder_config.linear2_output_dim).init(device),
             linear3: LinearConfig::new(
                 self.decoder_config.linear2_output_dim,
                 self.decoder_config.linear3_output_dim,
@@ -97,15 +105,19 @@ impl<B: Backend> AutoEncoder<B> {
     pub fn forward(&self, ecg: Tensor<B, 2>) -> Tensor<B, 2> {
         let x = self.encoder.linear1.forward(ecg);
         let x = self.linear_activation.forward(x);
+        let x = self.encoder.layer_norm1.forward(x);
         let x = self.encoder.linear2.forward(x);
         let x = self.linear_activation.forward(x);
+        let x = self.encoder.layer_norm2.forward(x);
         let x = self.encoder.linear3.forward(x);
         let x = self.linear_activation.forward(x);
 
         let x = self.decoder.linear1.forward(x);
         let x = self.linear_activation.forward(x);
+        let x = self.decoder.layer_norm1.forward(x);
         let x = self.decoder.linear2.forward(x);
         let x = self.linear_activation.forward(x);
+        let x = self.decoder.layer_norm2.forward(x);
         let x = self.decoder.linear3.forward(x);
         let x = self.linear_activation.forward(x);
 
